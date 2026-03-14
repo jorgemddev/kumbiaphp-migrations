@@ -1,0 +1,225 @@
+#!/usr/bin/env php
+<?php
+
+// Detectar raíz del proyecto (funciona tanto en vendor/ como en app/bin/)
+$root = null;
+
+// Caso 1: instalado via Composer en vendor/jorgemddev/kumbiaphp-migrations/bin/
+$composerRoot = dirname(__DIR__, 4);
+if (file_exists($composerRoot . '/app/config/databases.php')) {
+    $root = $composerRoot;
+}
+
+// Caso 2: copiado a app/bin/ (post-install)
+if ($root === null) {
+    $appBinRoot = dirname(__DIR__, 2);
+    if (file_exists($appBinRoot . '/app/config/databases.php')) {
+        $root = $appBinRoot;
+    }
+}
+
+if ($root === null) {
+    echo "Error: No se encontró la raíz del proyecto KumbiaPHP.\n";
+    echo "Asegúrate de que existe app/config/databases.php\n";
+    exit(1);
+}
+
+if (!defined('APP_PATH')) {
+    define('APP_PATH', $root . '/app/');
+}
+
+// Cargar autoload de Composer
+$autoload = $root . '/vendor/autoload.php';
+if (!file_exists($autoload)) {
+    echo "Error: vendor/autoload.php no encontrado. Ejecuta 'composer install'.\n";
+    exit(1);
+}
+require_once $autoload;
+
+use JorgeMdDev\KumbiaMigrations\Migrator;
+use JorgeMdDev\KumbiaMigrations\MigrationCreator;
+
+class MigrationCommand
+{
+    protected $migrator;
+    protected $creator;
+
+    public function __construct()
+    {
+        $this->migrator = new Migrator();
+        $this->creator  = new MigrationCreator();
+    }
+
+    public function run($argv)
+    {
+        $command = $argv[1] ?? 'migrate';
+
+        try {
+            switch ($command) {
+                case 'make:migration': $this->makeMigration($argv); break;
+                case '--rollback':
+                case 'rollback':       $this->rollback(); break;
+                case '--reset':
+                case 'reset':          $this->reset(); break;
+                case '--refresh':
+                case 'refresh':        $this->refresh(); break;
+                case '--status':
+                case 'status':         $this->status(); break;
+                case '--install':
+                case 'install':        $this->install(); break;
+                case '--help':
+                case 'help':           $this->help(); break;
+                default:               $this->migrate(); break;
+            }
+        } catch (Exception $e) {
+            $this->error("Error: " . $e->getMessage());
+            exit(1);
+        }
+    }
+
+    protected function migrate()
+    {
+        $this->info("Running migrations...\n");
+        $migrations = $this->migrator->run();
+        $this->printNotes();
+        if (count($migrations) > 0) $this->success("\nMigrations completed successfully!");
+    }
+
+    protected function rollback()
+    {
+        $this->info("Rolling back migrations...\n");
+        $migrations = $this->migrator->rollback();
+        $this->printNotes();
+        if (count($migrations) > 0) $this->success("\nRollback completed successfully!");
+    }
+
+    protected function reset()
+    {
+        $this->info("Resetting all migrations...\n");
+        $migrations = $this->migrator->reset();
+        $this->printNotes();
+        if (count($migrations) > 0) $this->success("\nReset completed successfully!");
+    }
+
+    protected function refresh()
+    {
+        $this->info("Refreshing database...\n");
+        $this->migrator->refresh();
+        $this->printNotes();
+        $this->success("\nDatabase refresh completed successfully!");
+    }
+
+    protected function status()
+    {
+        $this->info("Migration Status:\n");
+        $migrations = $this->migrator->status();
+
+        if (count($migrations) === 0) {
+            $this->warning("No migrations found.");
+            return;
+        }
+
+        $this->line(str_pad("Migration", 60) . str_pad("Batch", 10) . "Status");
+        $this->line(str_repeat("-", 80));
+
+        foreach ($migrations as $migration) {
+            $name  = str_pad($migration['migration'], 60);
+            $batch = str_pad($migration['batch'] ?? 'N/A', 10);
+            $ran   = $migration['ran']
+                ? $this->colorize('Ran', 'green')
+                : $this->colorize('Pending', 'yellow');
+
+            $this->line($name . $batch . $ran);
+        }
+    }
+
+    protected function install()
+    {
+        $this->info("Installing migration table...\n");
+        $this->migrator->install();
+        $this->printNotes();
+        $this->success("\nMigration table installed successfully!");
+    }
+
+    protected function makeMigration($argv)
+    {
+        if (!isset($argv[2])) {
+            $this->error("Migration name is required!");
+            $this->line("Usage: php app/bin/migrate make:migration create_users_table");
+            exit(1);
+        }
+
+        $name   = $argv[2];
+        $table  = $this->getOption($argv, '--table');
+        $create = $this->getOption($argv, '--create');
+
+        if ($create) {
+            $table    = $create;
+            $isCreate = true;
+        } else {
+            $isCreate = false;
+        }
+
+        $this->info("Creating migration: {$name}\n");
+        $path = $this->creator->create($name, $table, $isCreate);
+        $this->success("Migration created successfully!");
+        $this->line("Location: " . $path);
+    }
+
+    protected function help()
+    {
+        $this->info("KumbiaPHP Migration System\n");
+        $this->line("Usage:");
+        $this->line("  php app/bin/migrate [command] [options]\n");
+        $this->line("Commands:");
+        $this->line("  (default)              Run pending migrations");
+        $this->line("  rollback               Rollback the last batch");
+        $this->line("  reset                  Rollback all migrations");
+        $this->line("  refresh                Reset and re-run all migrations");
+        $this->line("  status                 Show migration status");
+        $this->line("  install                Create migration table");
+        $this->line("  make:migration <name>  Create a new migration file\n");
+        $this->line("Make Migration Options:");
+        $this->line("  --table=<name>         Table to modify");
+        $this->line("  --create=<name>        Table to create\n");
+    }
+
+    protected function printNotes()
+    {
+        foreach ($this->migrator->getNotes() as $note) {
+            $this->line($this->parseColors($note));
+        }
+    }
+
+    protected function getOption($argv, $option)
+    {
+        foreach ($argv as $arg) {
+            if (strpos($arg, $option . '=') === 0) {
+                return substr($arg, strlen($option) + 1);
+            }
+        }
+        return null;
+    }
+
+    protected function parseColors($text)
+    {
+        $text = preg_replace('/<info>(.*?)<\/info>/',       "\033[32m$1\033[0m", $text);
+        $text = preg_replace('/<comment>(.*?)<\/comment>/', "\033[33m$1\033[0m", $text);
+        $text = preg_replace('/<error>(.*?)<\/error>/',     "\033[31m$1\033[0m", $text);
+        return $text;
+    }
+
+    protected function colorize($text, $color)
+    {
+        $colors = ['green' => "\033[32m", 'yellow' => "\033[33m", 'red' => "\033[31m", 'blue' => "\033[34m"];
+        return ($colors[$color] ?? '') . $text . "\033[0m";
+    }
+
+    protected function info($msg)    { echo $this->colorize($msg, 'blue'); }
+    protected function success($msg) { echo $this->colorize($msg, 'green') . "\n"; }
+    protected function warning($msg) { echo $this->colorize($msg, 'yellow') . "\n"; }
+    protected function error($msg)   { echo $this->colorize($msg, 'red') . "\n"; }
+    protected function line($msg)    { echo $msg . "\n"; }
+}
+
+(new MigrationCommand())->run($argv);

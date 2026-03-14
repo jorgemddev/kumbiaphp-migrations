@@ -1,0 +1,110 @@
+#!/usr/bin/env php
+<?php
+
+// Detectar raíz del proyecto
+$root = null;
+
+$composerRoot = dirname(__DIR__, 4);
+if (file_exists($composerRoot . '/app/config/databases.php')) {
+    $root = $composerRoot;
+}
+
+if ($root === null) {
+    $appBinRoot = dirname(__DIR__, 2);
+    if (file_exists($appBinRoot . '/app/config/databases.php')) {
+        $root = $appBinRoot;
+    }
+}
+
+if ($root === null) {
+    echo "Error: No se encontró la raíz del proyecto KumbiaPHP.\n";
+    exit(1);
+}
+
+if (!defined('APP_PATH')) {
+    define('APP_PATH', $root . '/app/');
+}
+
+$autoload = $root . '/vendor/autoload.php';
+if (!file_exists($autoload)) {
+    echo "Error: vendor/autoload.php no encontrado. Ejecuta 'composer install'.\n";
+    exit(1);
+}
+require_once $autoload;
+
+use JorgeMdDev\KumbiaMigrations\Seeder;
+
+class SeederCommand
+{
+    protected $seedPath;
+
+    public function __construct()
+    {
+        $this->seedPath = APP_PATH . 'database/seeds/';
+    }
+
+    public function run($argv)
+    {
+        $class = $this->getOption($argv, '--class');
+
+        try {
+            $this->runSeeder($class ?? 'DatabaseSeeder');
+            $this->success("\nSeeding completed successfully!");
+        } catch (Exception $e) {
+            $this->error("Error: " . $e->getMessage());
+            exit(1);
+        }
+    }
+
+    protected function runSeeder($class)
+    {
+        $this->info("Seeding database...\n");
+        $this->loadSeeders();
+
+        if (!class_exists($class)) {
+            throw new RuntimeException("Seeder class [{$class}] not found.");
+        }
+
+        $seeder = new $class();
+
+        if (!($seeder instanceof Seeder)) {
+            throw new RuntimeException("Class [{$class}] is not a valid Seeder.");
+        }
+
+        $this->info("Running: {$class}\n");
+        $seeder->run();
+    }
+
+    protected function loadSeeders()
+    {
+        if (!is_dir($this->seedPath)) {
+            throw new RuntimeException("Seeders directory not found: {$this->seedPath}");
+        }
+
+        foreach (glob($this->seedPath . '*.php') as $file) {
+            require_once $file;
+        }
+    }
+
+    protected function getOption($argv, $option)
+    {
+        foreach ($argv as $arg) {
+            if (strpos($arg, $option . '=') === 0) {
+                return substr($arg, strlen($option) + 1);
+            }
+        }
+        return null;
+    }
+
+    protected function colorize($text, $color)
+    {
+        $colors = ['green' => "\033[32m", 'red' => "\033[31m", 'blue' => "\033[34m"];
+        return ($colors[$color] ?? '') . $text . "\033[0m";
+    }
+
+    protected function info($msg)    { echo $this->colorize($msg, 'blue'); }
+    protected function success($msg) { echo $this->colorize($msg, 'green') . "\n"; }
+    protected function error($msg)   { echo $this->colorize($msg, 'red') . "\n"; }
+}
+
+(new SeederCommand())->run($argv);

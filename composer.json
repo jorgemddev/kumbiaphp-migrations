@@ -1,0 +1,32 @@
+{
+    "name": "jorgemddev/kumbiaphp-migrations",
+    "description": "Sistema de migraciones de base de datos para KumbiaPHP, inspirado en Laravel Migrations.",
+    "type": "library",
+    "keywords": ["kumbiaphp", "migrations", "database", "schema", "php"],
+    "homepage": "https://github.com/jorgemddev/kumbiaphp-migrations",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jorge MD",
+            "homepage": "https://github.com/jorgemddev"
+        }
+    ],
+    "require": {
+        "php": ">=7.0",
+        "ext-pdo": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "JorgeMdDev\\KumbiaMigrations\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/migrate",
+        "bin/seed"
+    ],
+    "scripts": {
+        "post-install-cmd": "php vendor/jorgemddev/kumbiaphp-migrations/publish.php",
+        "post-update-cmd":  "php vendor/jorgemddev/kumbiaphp-migrations/publish.php"
+    },
+    "minimum-stability": "stable"
+}
