@@ -11,6 +11,20 @@ Sistema de migraciones de base de datos para [KumbiaPHP](https://www.kumbiaphp.c
 
 ## Instalación
 
+### Via Composer (recomendado)
+
+```bash
+composer require jorgemddev/kumbiaphp-migrations
+```
+
+El plugin copia automáticamente los binarios a `app/bin/` al instalar. Luego crea la tabla de control:
+
+```bash
+php app/bin/migrate --install
+```
+
+### Manual
+
 Copia la carpeta `migration/` dentro de `app/libs/` de tu proyecto KumbiaPHP:
 
 ```
@@ -298,6 +312,111 @@ Schema::dropIfExists('products');
 Schema::withoutForeignKeyConstraints(function () {
     Schema::drop('users');
 });
+```
+
+## Introspección de base de datos
+
+Permite inspeccionar la estructura actual de la base de datos. Compatible con MySQL, PostgreSQL y SQLite.
+
+### Listar tablas
+
+```php
+$tables = Schema::getTables();
+// ['categories', 'migrations', 'orders', 'products', 'users']
+```
+
+### Columnas de una tabla
+
+```php
+$columns = Schema::getColumns('products');
+```
+
+Cada elemento retorna:
+
+| Campo | Descripción |
+|-------|-------------|
+| `name` | Nombre de la columna |
+| `type` | Tipo de dato (`varchar(255)`, `int`, etc.) |
+| `nullable` | `true` si acepta NULL |
+| `default` | Valor por defecto o `null` |
+| `key` | `PRI`, `UNI`, `MUL` (MySQL) / `PRIMARY` (otros) / `null` |
+| `extra` | `auto_increment`, etc. (MySQL) |
+| `comment` | Comentario de la columna (MySQL) |
+
+```php
+// Ejemplo de resultado
+[
+    ['name' => 'id',    'type' => 'bigint unsigned', 'nullable' => false, 'default' => null, 'key' => 'PRI', 'extra' => 'auto_increment', 'comment' => null],
+    ['name' => 'name',  'type' => 'varchar(255)',    'nullable' => false, 'default' => null, 'key' => null,  'extra' => null,             'comment' => null],
+    ['name' => 'price', 'type' => 'decimal(10,2)',   'nullable' => false, 'default' => null, 'key' => null,  'extra' => null,             'comment' => null],
+]
+```
+
+### Índices de una tabla
+
+```php
+$indexes = Schema::getIndexes('products');
+```
+
+Cada elemento retorna:
+
+| Campo | Descripción |
+|-------|-------------|
+| `name` | Nombre del índice |
+| `columns` | Array de columnas que lo componen |
+| `unique` | `true` si es único |
+| `primary` | `true` si es la clave primaria |
+
+```php
+// Ejemplo de resultado
+[
+    ['name' => 'PRIMARY',           'columns' => ['id'],  'unique' => true,  'primary' => true],
+    ['name' => 'products_sku_unique', 'columns' => ['sku'], 'unique' => true,  'primary' => false],
+    ['name' => 'products_name_index', 'columns' => ['name'],'unique' => false, 'primary' => false],
+]
+```
+
+### Claves foráneas de una tabla
+
+```php
+$fks = Schema::getForeignKeys('orders');
+```
+
+Cada elemento retorna:
+
+| Campo | Descripción |
+|-------|-------------|
+| `name` | Nombre de la constraint |
+| `columns` | Columnas locales |
+| `on_table` | Tabla referenciada |
+| `references` | Columnas referenciadas |
+| `on_delete` | Acción ON DELETE (`CASCADE`, `RESTRICT`, `SET NULL`, `NO ACTION`) |
+| `on_update` | Acción ON UPDATE |
+
+```php
+// Ejemplo de resultado
+[
+    [
+        'name'       => 'orders_user_id_foreign',
+        'columns'    => ['user_id'],
+        'on_table'   => 'users',
+        'references' => ['id'],
+        'on_delete'  => 'CASCADE',
+        'on_update'  => 'RESTRICT',
+    ],
+]
+```
+
+### Uso con conexión específica
+
+Todos los métodos de introspección respetan la conexión activa:
+
+```php
+Schema::connection('production');
+
+$tables = Schema::getTables();
+$cols   = Schema::getColumns('users');
+$fks    = Schema::getForeignKeys('orders');
 ```
 
 ## Seeders
