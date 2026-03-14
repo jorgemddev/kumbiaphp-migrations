@@ -25,10 +25,18 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface
 
     public static function publishBinaries(Event $event)
     {
-        $io          = $event->getIO();
-        $vendorDir   = $event->getComposer()->getConfig()->get('vendor-dir');
-        $projectRoot = dirname($vendorDir);
-        $appBin      = $projectRoot . '/app/bin';
+        $io        = $event->getIO();
+        $vendorDir = $event->getComposer()->getConfig()->get('vendor-dir');
+
+        // Buscar la raíz real del proyecto subiendo niveles hasta encontrar app/
+        $projectRoot = self::findProjectRoot(dirname($vendorDir));
+
+        if ($projectRoot === null) {
+            $io->writeError('<error>[KumbiaMigrations] No se encontró el directorio app/ en ningún nivel superior.</error>');
+            return;
+        }
+
+        $appBin = $projectRoot . '/app/bin';
         $packageBin  = $vendorDir . '/jorgemddev/kumbiaphp-migrations/bin';
 
         if (!is_dir($packageBin)) {
@@ -57,5 +65,26 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface
         }
 
         $io->write('<info>[KumbiaMigrations] Listo. Ejecuta: php app/bin/migrate --install</info>');
+    }
+
+    private static function findProjectRoot($startDir)
+    {
+        $dir = $startDir;
+
+        for ($i = 0; $i < 10; $i++) {
+            if (is_dir($dir . '/app')) {
+                return $dir;
+            }
+
+            $parent = dirname($dir);
+
+            if ($parent === $dir) {
+                return null;
+            }
+
+            $dir = $parent;
+        }
+
+        return null;
     }
 }
