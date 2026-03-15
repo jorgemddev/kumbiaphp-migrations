@@ -15,7 +15,7 @@ class MySqlGrammar extends Grammar
     public function compileCreate(Blueprint $blueprint)
     {
         $columns = implode(', ', $this->getColumns($blueprint));
-        $sql     = $blueprint->temporary ? 'CREATE TEMPORARY TABLE ' : 'CREATE TABLE ';
+        $sql     = $blueprint->temporary ? 'CREATE TEMPORARY TABLE ' : 'CREATE TABLE IF NOT EXISTS ';
         $sql    .= $this->wrap($blueprint->getTable()) . " ({$columns})";
         $sql    .= $this->addTableOptions($blueprint);
 
