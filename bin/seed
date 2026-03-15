@@ -2,19 +2,33 @@
 <?php
 
 // Detectar raíz del proyecto
-$root = null;
+function findProjectRoot() {
+    $candidates = [
+        getcwd(),
+        dirname(__DIR__, 2),
+        dirname(__DIR__, 4),
+    ];
 
-$composerRoot = dirname(__DIR__, 4);
-if (file_exists($composerRoot . '/app/config/databases.php')) {
-    $root = $composerRoot;
-}
-
-if ($root === null) {
-    $appBinRoot = dirname(__DIR__, 2);
-    if (file_exists($appBinRoot . '/app/config/databases.php')) {
-        $root = $appBinRoot;
+    foreach ($candidates as $dir) {
+        if ($dir && file_exists($dir . '/app/config/databases.php')) {
+            return $dir;
+        }
     }
+
+    $dir = getcwd();
+    for ($i = 0; $i < 6; $i++) {
+        if (file_exists($dir . '/app/config/databases.php')) {
+            return $dir;
+        }
+        $parent = dirname($dir);
+        if ($parent === $dir) break;
+        $dir = $parent;
+    }
+
+    return null;
 }
+
+$root = findProjectRoot();
 
 if ($root === null) {
     echo "Error: No se encontró la raíz del proyecto KumbiaPHP.\n";

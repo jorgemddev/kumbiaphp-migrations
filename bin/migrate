@@ -1,22 +1,35 @@
 #!/usr/bin/env php
 <?php
 
-// Detectar raíz del proyecto (funciona tanto en vendor/ como en app/bin/)
-$root = null;
+// Detectar raíz del proyecto
+function findProjectRoot() {
+    $candidates = [
+        getcwd(),                   // directorio desde donde se ejecuta el comando
+        dirname(__DIR__, 2),        // copiado a app/bin/
+        dirname(__DIR__, 4),        // en vendor/jorgemddev/kumbiaphp-migrations/bin/
+    ];
 
-// Caso 1: instalado via Composer en vendor/jorgemddev/kumbiaphp-migrations/bin/
-$composerRoot = dirname(__DIR__, 4);
-if (file_exists($composerRoot . '/app/config/databases.php')) {
-    $root = $composerRoot;
-}
-
-// Caso 2: copiado a app/bin/ (post-install)
-if ($root === null) {
-    $appBinRoot = dirname(__DIR__, 2);
-    if (file_exists($appBinRoot . '/app/config/databases.php')) {
-        $root = $appBinRoot;
+    foreach ($candidates as $dir) {
+        if ($dir && file_exists($dir . '/app/config/databases.php')) {
+            return $dir;
+        }
     }
+
+    // Subir niveles desde cwd como último recurso
+    $dir = getcwd();
+    for ($i = 0; $i < 6; $i++) {
+        if (file_exists($dir . '/app/config/databases.php')) {
+            return $dir;
+        }
+        $parent = dirname($dir);
+        if ($parent === $dir) break;
+        $dir = $parent;
+    }
+
+    return null;
 }
+
+$root = findProjectRoot();
 
 if ($root === null) {
     echo "Error: No se encontró la raíz del proyecto KumbiaPHP.\n";
