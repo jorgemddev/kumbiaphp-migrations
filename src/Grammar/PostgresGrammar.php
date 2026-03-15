@@ -46,24 +46,28 @@ class PostgresGrammar extends MySqlGrammar
     public function compileAdd(Blueprint $blueprint)
     {
         $table = $this->wrap($blueprint->getTable());
+        $statements = [];
 
-        return array_map(function ($column) use ($table) {
+        foreach ($blueprint->getColumns() as $column) {
             // Handle column modification in PostgreSQL
             if ($column->get('change')) {
                 $columnName = $this->wrap($column->get('name'));
-                $sql = '';
 
                 // In PostgreSQL, we need to use ALTER COLUMN for type changes
-                $typeSQL = 'ALTER TABLE ' . $table . ' ALTER COLUMN ' . $columnName . ' TYPE ' . $this->getType($column);
+                $statements[] = 'ALTER TABLE ' . $table . ' ALTER COLUMN ' . $columnName . ' TYPE ' . $this->getType($column);
 
-                // Handle modifiers separately if needed
+                // Handle nullable separately
                 $nullable = $column->get('nullable') ? 'NULL' : 'NOT NULL';
-                $nullSQL = 'ALTER TABLE ' . $table . ' ALTER COLUMN ' . $columnName . ' SET ' . $nullable;
-
-                return [$typeSQL, $nullSQL];
+                $statements[] = 'ALTER TABLE ' . $table . ' ALTER COLUMN ' . $columnName . ' SET ' . $nullable;
+            } else {
+                // For new columns
+                $sql = $this->wrap($column->get('name')) . ' ' . $this->getType($column);
+                $modifiers = $this->getColumnModifiers($blueprint, $column);
+                $statements[] = "ALTER TABLE {$table} ADD COLUMN " . ($modifiers ? $sql . ' ' . $modifiers : $sql);
             }
-            return "ALTER TABLE {$table} ADD COLUMN {$column}";
-        }, $blueprint->getColumns());
+        }
+
+        return $statements;
     }
 
     protected function addTableOptions(Blueprint $blueprint) { return ''; }
