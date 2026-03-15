@@ -27,6 +27,14 @@ class MySqlGrammar extends Grammar
         $table = $this->wrap($blueprint->getTable());
 
         return array_map(function ($column) use ($table) {
+            // Handle column modification (CHANGE)
+            if ($column->get('change')) {
+                $columnName = $this->wrap($column->get('name'));
+                $sql = $this->wrap($column->get('name')) . ' ' . $this->getType($column);
+                $modifiers = $this->getColumnModifiers($blueprint, $column);
+                $sql = $modifiers ? $sql . ' ' . $modifiers : $sql;
+                return "ALTER TABLE {$table} CHANGE COLUMN {$columnName} {$sql}";
+            }
             return "ALTER TABLE {$table} ADD {$column}";
         }, $this->getColumns($blueprint));
     }

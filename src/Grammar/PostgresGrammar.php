@@ -43,5 +43,28 @@ class PostgresGrammar extends MySqlGrammar
         );
     }
 
+    public function compileAdd(Blueprint $blueprint)
+    {
+        $table = $this->wrap($blueprint->getTable());
+
+        return array_map(function ($column) use ($table) {
+            // Handle column modification in PostgreSQL
+            if ($column->get('change')) {
+                $columnName = $this->wrap($column->get('name'));
+                $sql = '';
+
+                // In PostgreSQL, we need to use ALTER COLUMN for type changes
+                $typeSQL = 'ALTER TABLE ' . $table . ' ALTER COLUMN ' . $columnName . ' TYPE ' . $this->getType($column);
+
+                // Handle modifiers separately if needed
+                $nullable = $column->get('nullable') ? 'NULL' : 'NOT NULL';
+                $nullSQL = 'ALTER TABLE ' . $table . ' ALTER COLUMN ' . $columnName . ' SET ' . $nullable;
+
+                return [$typeSQL, $nullSQL];
+            }
+            return "ALTER TABLE {$table} ADD COLUMN {$column}";
+        }, $blueprint->getColumns());
+    }
+
     protected function addTableOptions(Blueprint $blueprint) { return ''; }
 }

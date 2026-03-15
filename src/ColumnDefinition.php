@@ -110,4 +110,10 @@ class ColumnDefinition
         $this->attributes[$key] = $value;
         return $this;
     }
+
+    public function change()
+    {
+        $this->attributes['change'] = true;
+        return $this;
+    }
 }

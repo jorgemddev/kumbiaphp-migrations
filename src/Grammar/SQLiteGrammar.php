@@ -38,6 +38,10 @@ class SQLiteGrammar extends MySqlGrammar
         $table = $this->wrap($blueprint->getTable());
 
         return array_map(function ($column) use ($table) {
+            // SQLite doesn't support modifying columns directly
+            if ($column->get('change')) {
+                throw new \RuntimeException('SQLite does not support modifying columns. You need to recreate the table.');
+            }
             return "ALTER TABLE {$table} ADD COLUMN {$column}";
         }, $this->getColumns($blueprint));
     }
