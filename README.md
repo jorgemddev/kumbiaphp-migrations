@@ -1,6 +1,23 @@
 # KumbiaPHP Migrations
 
-Sistema de migraciones de base de datos para [KumbiaPHP](https://www.kumbiaphp.com/), inspirado en Laravel Migrations. Permite versionar y gestionar los cambios en el esquema de tu base de datos de forma ordenada y reproducible.
+## Propósito del Proyecto
+
+**KumbiaPHP Migrations** nace de la necesidad de proporcionar un sistema robusto de versionado y gestión de cambios en esquemas de base de datos para [KumbiaPHP](https://www.kumbiaphp.com/), un framework que actualmente carece de esta funcionalidad.
+
+El framework KumbiaPHP es poderoso pero no contaba con un sistema nativo de migraciones de base de datos. Este proyecto fue desarrollado como solución integral, **inspirado en Laravel Migrations** — uno de los sistemas más maduros y confiables de la comunidad PHP — adaptado específicamente para las características y estructura de KumbiaPHP.
+
+> **Nota sobre el desarrollo:** Este proyecto fue desarrollado con la asistencia de IA, asegurando código de calidad, moderno y mantenible.
+
+---
+
+## ¿Qué es?
+
+Un sistema de migraciones que permite:
+- **Versionar** cambios en el esquema de tu base de datos
+- **Reproducir** la estructura de la BD desde cero en cualquier ambiente
+- **Revertir** cambios de forma segura
+- **Colaborar** en equipo sin conflictos de esquema
+- **Automatizar** despliegues y sincronización de BD
 
 ## Requisitos
 
@@ -11,7 +28,7 @@ Sistema de migraciones de base de datos para [KumbiaPHP](https://www.kumbiaphp.c
 
 ## Instalación
 
-### Via Composer (recomendado)
+### Vía Composer (recomendado)
 
 ```bash
 composer require jorgemddev/kumbiaphp-migrations
@@ -25,15 +42,15 @@ php app/bin/migrate --install
 
 ### Manual
 
-Copia la carpeta `migration/` dentro de `app/libs/` de tu proyecto KumbiaPHP:
+Copia la carpeta `src/` dentro de `app/libs/` de tu proyecto KumbiaPHP:
 
 ```
 app/
 ├── libs/
-│   └── migration/       ← aquí
-├── migrations/          ← se crea automáticamente
+│   └── KumbiaMigrations/    ← aquí
+├── migrations/              ← se crea automáticamente
 ├── database/
-│   └── seeds/           ← seeders aquí
+│   └── seeds/               ← seeders aquí
 └── config/
     └── databases.php
 ```
@@ -169,6 +186,29 @@ class AddDescriptionToProductsTable extends Migration
 }
 ```
 
+### Modificar columna existente
+
+```php
+<?php
+
+class FixScheduleExemptDefault extends Migration
+{
+    public function up()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->boolean('schedule_exempt')->default(false)->change();
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->boolean('schedule_exempt')->change();
+        });
+    }
+}
+```
+
 ### Tabla con clave foránea
 
 ```php
@@ -243,6 +283,7 @@ $table->integer('views')->default(0)->unsigned();
 $table->string('bio')->nullable()->after('email');
 $table->timestamp('verified_at')->nullable()->useCurrent();
 $table->string('slug')->index();
+$table->boolean('active')->change();
 ```
 
 | Modificador | Descripción |
@@ -256,6 +297,7 @@ $table->string('slug')->index();
 | `->first()` | Primera posición (MySQL) |
 | `->comment('texto')` | Comentario (MySQL) |
 | `->useCurrent()` | DEFAULT CURRENT_TIMESTAMP |
+| `->change()` | Modificar columna existente |
 
 ## Claves foráneas
 
@@ -519,36 +561,33 @@ git pull origin main
 php app/bin/migrate
 ```
 
-> No ejecutes `--reset` ni `--refresh` en producción. Solo `migrate` para aplicar los cambios pendientes.
+> **Advertencia:** No ejecutes `--reset` ni `--refresh` en producción. Solo `migrate` para aplicar los cambios pendientes.
 
 ## Estructura de archivos
 
 ```
-app/
-├── bin/
-│   ├── migrate          # CLI de migraciones
-│   └── seed             # CLI de seeders
-├── libs/
-│   └── migration/
-│       ├── grammar/
-│       │   ├── Grammar.php
-│       │   ├── MySqlGrammar.php
-│       │   ├── PostgresGrammar.php
-│       │   └── SQLiteGrammar.php
-│       ├── Migration.php
-│       ├── MigrationCreator.php
-│       ├── MigrationDatabase.php
-│       ├── MigrationRepository.php
-│       ├── Migrator.php
-│       ├── Blueprint.php
-│       ├── ColumnDefinition.php
-│       ├── ForeignKeyDefinition.php
-│       ├── Schema.php
-│       └── Seeder.php
-├── migrations/
-│   └── 2024_01_15_120000_create_users_table.php
-└── database/
-    └── seeds/
-        ├── DatabaseSeeder.php
-        └── UsersSeeder.php
+src/
+├── Grammar/
+│   ├── Grammar.php
+│   ├── MySqlGrammar.php
+│   ├── PostgresGrammar.php
+│   └── SQLiteGrammar.php
+├── Migration.php
+├── MigrationCreator.php
+├── MigrationDatabase.php
+├── MigrationRepository.php
+├── Migrator.php
+├── Blueprint.php
+├── ColumnDefinition.php
+├── ForeignKeyDefinition.php
+├── Schema.php
+└── Seeder.php
 ```
+
+## Licencia
+
+Este proyecto está bajo licencia MIT. Siéntete libre de usarlo, modificarlo y distribuirlo.
+
+---
+
+**Desarrollado con IA para la comunidad de KumbiaPHP** 🚀
