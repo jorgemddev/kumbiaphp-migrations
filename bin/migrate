@@ -41,10 +41,27 @@ if (!defined('APP_PATH')) {
     define('APP_PATH', $root . '/app/');
 }
 
-// Cargar autoload de Composer
-$autoload = $root . '/vendor/autoload.php';
-if (!file_exists($autoload)) {
-    echo "Error: vendor/autoload.php no encontrado. Ejecuta 'composer install'.\n";
+// Cargar autoload de Composer (buscar en ubicaciones posibles)
+$autoloadCandidates = [
+    $root . '/vendor/autoload.php',           // composer.json en raíz del proyecto
+    $root . '/app/libs/vendor/autoload.php',  // composer.json en app/libs/
+    $root . '/app/vendor/autoload.php',       // composer.json en app/
+    dirname(__DIR__) . '/vendor/autoload.php', // relativo al bin copiado
+];
+
+$autoload = null;
+foreach ($autoloadCandidates as $candidate) {
+    if (file_exists($candidate)) {
+        $autoload = $candidate;
+        break;
+    }
+}
+
+if ($autoload === null) {
+    echo "Error: vendor/autoload.php no encontrado.\n";
+    echo "Ubicaciones buscadas:\n";
+    foreach ($autoloadCandidates as $c) echo "  - {$c}\n";
+    echo "Ejecuta 'composer install' en el directorio donde está tu composer.json\n";
     exit(1);
 }
 require_once $autoload;
