@@ -206,6 +206,19 @@ class Migrator
     protected function resolve($file)
     {
         $class = $this->getMigrationClassName($file);
+
+        // Alias para que las migraciones puedan usar `extends Migration`
+        // sin necesidad de declarar el namespace o use statement
+        if (!class_exists('Migration', false)) {
+            class_alias(Migration::class, 'Migration');
+        }
+        if (!class_exists('Blueprint', false)) {
+            class_alias(Blueprint::class, 'Blueprint');
+        }
+        if (!class_exists('Schema', false)) {
+            class_alias(Schema::class, 'Schema');
+        }
+
         require_once $this->path . $file;
         return new $class();
     }
